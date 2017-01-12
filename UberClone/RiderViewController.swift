@@ -11,6 +11,8 @@ import MapKit
 import Parse
 
 class RiderViewController: UIViewController, CLLocationManagerDelegate {
+
+    @IBOutlet var rideCompletedButton: UIButton!
     
     @IBOutlet var map: MKMapView!
     @IBOutlet var callUberButton: UIButton!
@@ -33,6 +35,7 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
                     newLocation.saveInBackground()
                     sender.setTitle("Cancel Uber", for: [])
                     self.callingAnUber = false
+                    self.rideCompletedButton.isHidden = false
                     print("request saved")
                 }
             })
@@ -50,10 +53,33 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
                     request.deleteInBackground()
                     sender.setTitle("Call an Uber", for: [])
                     self.callingAnUber = true
+                    self.rideCompletedButton.isHidden = true
                 }
             })
         }
         
+    }
+    
+    @IBAction func completeRide(_ sender: UIButton) {
+        
+        let query = PFQuery(className: "RequestedRiders")
+        query.whereKey("user", equalTo: currentUser)
+        query.whereKey("completed", equalTo: false)
+        query.addAscendingOrder("createdAt")
+        query.getFirstObjectInBackground(block: { [unowned self] (object, error) in
+            if error != nil {
+                print(error.debugDescription)
+            }
+            if let request = object {
+                request["completed"] = true
+                request.saveInBackground()
+                sender.isHidden = true
+                self.callUberButton.setTitle("Call an Uber", for: [])
+                self.callingAnUber = true
+            }
+        })
+        
+        print("completed button pressed")
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {

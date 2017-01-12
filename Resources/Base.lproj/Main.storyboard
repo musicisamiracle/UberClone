@@ -137,12 +137,21 @@
                                     <action selector="callUber:" destination="YpB-QD-GmB" eventType="touchUpInside" id="OcU-SM-XY4"/>
                                 </connections>
                             </button>
+                            <button hidden="YES" opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="jUJ-ay-Grz">
+                                <rect key="frame" x="132" y="500" width="110" height="30"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <state key="normal" title="Ride Completed"/>
+                                <connections>
+                                    <action selector="completeRide:" destination="YpB-QD-GmB" eventType="touchUpInside" id="hgU-DM-mkG"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                     </view>
                     <connections>
                         <outlet property="callUberButton" destination="lqg-z0-1e3" id="ppA-7W-xWJ"/>
                         <outlet property="map" destination="8zH-EC-X9v" id="qrq-H2-7eW"/>
+                        <outlet property="rideCompletedButton" destination="jUJ-ay-Grz" id="IO5-md-FhF"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="PEF-ce-HuS" userLabel="First Responder" sceneMemberID="firstResponder"/>
