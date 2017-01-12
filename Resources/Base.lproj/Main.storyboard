@@ -133,6 +133,9 @@
                                 <rect key="frame" x="134" y="433" width="107" height="40"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Call an Uber"/>
+                                <connections>
+                                    <action selector="callUber:" destination="YpB-QD-GmB" eventType="touchUpInside" id="OcU-SM-XY4"/>
+                                </connections>
                             </button>
                         </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
@@ -201,6 +204,6 @@
         </scene>
     </scenes>
     <inferredMetricsTieBreakers>
-        <segue reference="8f8-xt-dgX"/>
+        <segue reference="bDu-ox-Zsy"/>
     </inferredMetricsTieBreakers>
 </document>

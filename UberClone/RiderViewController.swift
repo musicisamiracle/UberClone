@@ -15,7 +15,47 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
     @IBOutlet var map: MKMapView!
     @IBOutlet var callUberButton: UIButton!
     let locationManager = CLLocationManager()
+    var currentUser: PFUser!
+    var callingAnUber = true
 
+    @IBAction func callUber(_ sender: UIButton) {
+        
+        if callingAnUber {
+            let newLocation = PFObject(className: "RequestedRiders")
+            newLocation["user"] = currentUser
+            newLocation["completed"] = false
+            PFGeoPoint.geoPointForCurrentLocation(inBackground: { [unowned self] (point, error) in
+                if error != nil {
+                    print(error.debugDescription)
+                }
+                if let point = point {
+                    newLocation["location"] = point
+                    newLocation.saveInBackground()
+                    sender.setTitle("Cancel Uber", for: [])
+                    self.callingAnUber = false
+                    print("request saved")
+                }
+            })
+        }
+        else {
+            let query = PFQuery(className: "RequestedRiders")
+            query.whereKey("user", equalTo: currentUser)
+            query.whereKey("completed", equalTo: false)
+            query.addAscendingOrder("createdAt")
+            query.getFirstObjectInBackground(block: { [unowned self] (object, error) in
+                if error != nil {
+                    print(error.debugDescription)
+                }
+                if let request = object {
+                    request.deleteInBackground()
+                    sender.setTitle("Call an Uber", for: [])
+                    self.callingAnUber = true
+                }
+            })
+        }
+        
+    }
+    
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         
         /*let location = locations[0]
@@ -27,6 +67,8 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        currentUser = PFUser.current()
         
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
@@ -64,16 +106,4 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
-    
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
-    }
-    */
-
 }
