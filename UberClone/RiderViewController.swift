@@ -19,6 +19,10 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
     let locationManager = CLLocationManager()
     var currentUser: PFUser!
     var callingAnUber = true
+    
+    enum RequestUpdateType: Int {
+        case cancel, complete, refresh
+    }
 
     @IBAction func callUber(_ sender: UIButton) {
         
@@ -41,45 +45,13 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
             })
         }
         else {
-            let query = PFQuery(className: "RequestedRiders")
-            query.whereKey("user", equalTo: currentUser)
-            query.whereKey("completed", equalTo: false)
-            query.addAscendingOrder("createdAt")
-            query.getFirstObjectInBackground(block: { [unowned self] (object, error) in
-                if error != nil {
-                    print(error.debugDescription)
-                }
-                if let request = object {
-                    request.deleteInBackground()
-                    sender.setTitle("Call an Uber", for: [])
-                    self.callingAnUber = true
-                    self.rideCompletedButton.isHidden = true
-                }
-            })
+            updateOpenRequests(type: .cancel)
         }
         
     }
     
     @IBAction func completeRide(_ sender: UIButton) {
-        
-        let query = PFQuery(className: "RequestedRiders")
-        query.whereKey("user", equalTo: currentUser)
-        query.whereKey("completed", equalTo: false)
-        query.addAscendingOrder("createdAt")
-        query.getFirstObjectInBackground(block: { [unowned self] (object, error) in
-            if error != nil {
-                print(error.debugDescription)
-            }
-            if let request = object {
-                request["completed"] = true
-                request.saveInBackground()
-                sender.isHidden = true
-                self.callUberButton.setTitle("Call an Uber", for: [])
-                self.callingAnUber = true
-            }
-        })
-        
-        print("completed button pressed")
+        updateOpenRequests(type: .complete)
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -104,10 +76,7 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
         map.showsUserLocation = true
         map.isZoomEnabled = true
         map.userTrackingMode = .follow
-        
-        
 
-        // Do any additional setup after loading the view.
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -120,13 +89,57 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         self.navigationController?.navigationBar.isHidden = true
-        print(PFUser.current())
+        
+        updateOpenRequests(type: .refresh)
+        
     }
     
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         
         self.navigationController?.navigationBar.isHidden = false
+    }
+    
+    func updateOpenRequests(type: RequestUpdateType) {
+        
+        let query = PFQuery(className: "RequestedRiders")
+        query.whereKey("user", equalTo: currentUser)
+        query.whereKey("completed", equalTo: false)
+        query.addAscendingOrder("createdAt")
+        query.getFirstObjectInBackground(block: { [unowned self] (object, error) in
+            if error != nil {
+                print(error.debugDescription)
+            }
+            if let request = object {
+                switch type {
+                case .cancel:
+                    request.deleteInBackground()
+                    self.callUberButton.setTitle("Call an Uber", for: [])
+                    self.callingAnUber = true
+                    self.rideCompletedButton.isHidden = true
+                    
+                case .complete:
+                    request["completed"] = true
+                    request.saveInBackground()
+                    self.rideCompletedButton.isHidden = true
+                    self.callUberButton.setTitle("Call an Uber", for: [])
+                    self.callingAnUber = true
+                
+                case .refresh:
+                    if request["acceptedBy"] == nil {
+                        self.callUberButton.setTitle("Cancel Uber", for: [])
+                        self.callingAnUber = false
+                        self.rideCompletedButton.isHidden = false
+                    }
+                    else {
+                        print("ride accepted")
+                    }
+                    
+                    
+                }
+            }
+        })
+        
     }
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()

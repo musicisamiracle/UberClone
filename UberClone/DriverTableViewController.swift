@@ -12,14 +12,42 @@ import Parse
 
 class DriverTableViewController: UITableViewController {
 
+    var rideRequests: [PFObject] = []
+    var driverLocation: PFGeoPoint?
+    var selectedRequest: PFObject!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        print(PFUser.current())
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
+        
+        PFGeoPoint.geoPointForCurrentLocation { [unowned self] (point, error) in
+            if error != nil {
+                print(error.debugDescription)
+            }
+            
+            if let point = point {
+                self.driverLocation = point
+                
+                let query = PFQuery(className: "RequestedRiders")
+                query.whereKey("completed", equalTo: false)
+                query.whereKeyDoesNotExist("acceptedBy")
+                query.whereKey("location", nearGeoPoint: point)
+                query.includeKey("user")
+                query.findObjectsInBackground { [unowned self] (objects, error) in
+                    if error != nil {
+                        print(error.debugDescription)
+                    }
+                    if let requests = objects {
+                        self.rideRequests = requests
+                        self.tableView.reloadData()
+                    }
+                }
+            }
+        }
 
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem()
+        
+        
+        
+        
     }
 
     override func didReceiveMemoryWarning() {
@@ -36,16 +64,32 @@ class DriverTableViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete implementation, return the number of rows
-        return 4
+        return  rideRequests.count
     }
 
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "requestedRiders", for: indexPath)
-        cell.textLabel?.text = "test"
-        // Configure the cell...
+        let cell = tableView.dequeueReusableCell(withIdentifier: "requestedRiders", for: indexPath) as! RiderTableViewCell
+        let rider = rideRequests[indexPath.row]
+        
+        cell.nameLabel.text = (rider["user"] as! PFUser)["username"] as? String
+        
+        if var distanceToRider = driverLocation?.distanceInMiles(to: rider["location"] as? PFGeoPoint) {
+            distanceToRider = round(distanceToRider, numOfPlaces: 2)
+            cell.distanceLabel.text = "\(distanceToRider) mi. away"
+        }
+        else {
+            cell.distanceLabel.text = "Unable to determine distance"
+        }
+        
+        
 
         return cell
+    }
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        selectedRequest = rideRequests[indexPath.row]
+        performSegue(withIdentifier: "toRiderDetail", sender: self)
     }
     
 
@@ -92,6 +136,18 @@ class DriverTableViewController: UITableViewController {
         if segue.identifier == "logOut" {
             PFUser.logOut()
         }
+        
+        if segue.identifier == "toRiderDetail" {
+            if let RiderDetailController = segue.destination as? RiderDetailViewController {
+                RiderDetailController.rideRequest = selectedRequest
+            }
+        }
+    }
+    
+    func round(_ double: Double, numOfPlaces: Int) -> Double {
+        let divisor = pow(10.0, Double(numOfPlaces))
+        
+        return ((double * divisor).rounded()) / divisor
     }
     
 

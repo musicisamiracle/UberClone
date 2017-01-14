@@ -89,7 +89,6 @@ class ViewController: UIViewController {
         super.viewWillAppear(animated)
         
         self.navigationController?.navigationBar.isHidden = true
-        print(PFUser.current()?.username as Any)
     }
     
     override func viewDidDisappear(_ animated: Bool) {
