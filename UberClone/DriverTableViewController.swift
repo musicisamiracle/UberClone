@@ -9,6 +9,7 @@
 import UIKit
 import Parse
 
+// Should have some way of knowing a ride is in progress.
 
 class DriverTableViewController: UITableViewController {
 
@@ -18,6 +19,11 @@ class DriverTableViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         
         PFGeoPoint.geoPointForCurrentLocation { [unowned self] (point, error) in
             if error != nil {
@@ -27,9 +33,8 @@ class DriverTableViewController: UITableViewController {
             if let point = point {
                 self.driverLocation = point
                 
-                let query = PFQuery(className: "RequestedRiders")
-                query.whereKey("completed", equalTo: false)
-                query.whereKeyDoesNotExist("acceptedBy")
+                let query = PFQuery(className: "RequestedRides")
+                query.whereKey("accepted", equalTo: false)
                 query.whereKey("location", nearGeoPoint: point)
                 query.includeKey("user")
                 query.findObjectsInBackground { [unowned self] (objects, error) in
@@ -43,11 +48,6 @@ class DriverTableViewController: UITableViewController {
                 }
             }
         }
-
-        
-        
-        
-        
     }
 
     override func didReceiveMemoryWarning() {

@@ -6,30 +6,43 @@
 //  Copyright © 2017 Parse. All rights reserved.
 //
 
+// once driver location can be updated in background, have this periodically update to reflect the driver position
+
 import UIKit
 import MapKit
 import Parse
 
-class RiderViewController: UIViewController, CLLocationManagerDelegate {
+class RiderViewController: UIViewController {
 
     @IBOutlet var rideCompletedButton: UIButton!
     
     @IBOutlet var map: MKMapView!
     @IBOutlet var callUberButton: UIButton!
-    let locationManager = CLLocationManager()
     var currentUser: PFUser!
     var callingAnUber = true
-    
+    var acceptedRideId: String?
+    var currentLocation: PFGeoPoint?
+    var driver = MKPointAnnotation()
+
     enum RequestUpdateType: Int {
-        case cancel, complete, refresh
+        case refresh, cancel
+    }
+    
+    enum RiderViewState: Int {
+        case noRequests, awaitingAccept, accepted
     }
 
     @IBAction func callUber(_ sender: UIButton) {
         
         if callingAnUber {
-            let newLocation = PFObject(className: "RequestedRiders")
+            let newLocation = PFObject(className: "RequestedRides")
             newLocation["user"] = currentUser
-            newLocation["completed"] = false
+            newLocation["accepted"] = false
+            let access = PFACL()
+            access.getPublicWriteAccess = true
+            access.getPublicReadAccess = true
+            newLocation.acl = access
+            
             PFGeoPoint.geoPointForCurrentLocation(inBackground: { [unowned self] (point, error) in
                 if error != nil {
                     print(error.debugDescription)
@@ -39,8 +52,7 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
                     newLocation.saveInBackground()
                     sender.setTitle("Cancel Uber", for: [])
                     self.callingAnUber = false
-                    self.rideCompletedButton.isHidden = false
-                    print("request saved")
+                    self.rideCompletedButton.isHidden = true
                 }
             })
         }
@@ -51,31 +63,48 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
     }
     
     @IBAction func completeRide(_ sender: UIButton) {
-        updateOpenRequests(type: .complete)
-    }
-    
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let objectId = acceptedRideId else {
+            print("no object id")
+            return
+        }
         
-        /*let location = locations[0]
-        let center = CLLocationCoordinate2D(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
-        let span = MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-        let region = MKCoordinateRegion(center: center, span: span)
-        map.setRegion(region, animated: true)*/
+        let query = PFQuery(className: "AcceptedRides")
+        query.getObjectInBackground(withId: objectId) { [unowned self] (object, error) in
+            if error != nil {
+                print(error.debugDescription)
+            }
+            
+            if let ride = object {
+                ride["complete"] = true
+                ride.saveInBackground()
+                self.map.removeAnnotation(self.driver)
+                self.updateOpenRequests(type: .refresh)
+            }
+        }
+        
     }
+
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        currentUser = PFUser.current()
+        self.navigationController?.setNavigationBarHidden(true, animated: false)
         
-        locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.requestWhenInUseAuthorization()
-        locationManager.startUpdatingLocation()
+        currentUser = PFUser.current()
         
         map.showsUserLocation = true
         map.isZoomEnabled = true
         map.userTrackingMode = .follow
+        
+        PFGeoPoint.geoPointForCurrentLocation { [unowned self] (point, error) in
+            if error != nil {
+                print(error.debugDescription)
+            }
+            
+            if let point = point {
+                self.currentLocation = point
+            }
+        }
 
     }
     
@@ -88,7 +117,7 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        self.navigationController?.navigationBar.isHidden = true
+        self.navigationController?.setNavigationBarHidden(true, animated: false)
         
         updateOpenRequests(type: .refresh)
         
@@ -97,49 +126,95 @@ class RiderViewController: UIViewController, CLLocationManagerDelegate {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         
-        self.navigationController?.navigationBar.isHidden = false
+        self.navigationController?.setNavigationBarHidden(false, animated: false)
     }
     
     func updateOpenRequests(type: RequestUpdateType) {
         
-        let query = PFQuery(className: "RequestedRiders")
+        let query = PFQuery(className: "RequestedRides")
         query.whereKey("user", equalTo: currentUser)
-        query.whereKey("completed", equalTo: false)
+        query.whereKey("accepted", equalTo: false)
         query.addAscendingOrder("createdAt")
         query.getFirstObjectInBackground(block: { [unowned self] (object, error) in
             if error != nil {
                 print(error.debugDescription)
             }
+            
             if let request = object {
+                
                 switch type {
+                    
+                case .refresh:
+                    self.setStateforView(.awaitingAccept)
+                    
                 case .cancel:
                     request.deleteInBackground()
-                    self.callUberButton.setTitle("Call an Uber", for: [])
-                    self.callingAnUber = true
-                    self.rideCompletedButton.isHidden = true
-                    
-                case .complete:
-                    request["completed"] = true
-                    request.saveInBackground()
-                    self.rideCompletedButton.isHidden = true
-                    self.callUberButton.setTitle("Call an Uber", for: [])
-                    self.callingAnUber = true
-                
-                case .refresh:
-                    if request["acceptedBy"] == nil {
-                        self.callUberButton.setTitle("Cancel Uber", for: [])
-                        self.callingAnUber = false
-                        self.rideCompletedButton.isHidden = false
-                    }
-                    else {
-                        print("ride accepted")
-                    }
-                    
-                    
+                    self.setStateforView(.noRequests)
                 }
+            }
+            else {
+                self.checkAcceptedRides()
             }
         })
         
+    }
+    func checkAcceptedRides() {
+        let acceptedQuery = PFQuery(className: "AcceptedRides")
+        acceptedQuery.whereKey("rider", equalTo: self.currentUser)
+        acceptedQuery.whereKey("complete", equalTo: false)
+        acceptedQuery.getFirstObjectInBackground(block: { [unowned self] (object, error) in
+            
+            if error != nil {
+                print(error.debugDescription)
+            }
+            
+            if let ride = object {
+                self.acceptedRideId = ride.objectId
+                self.setStateforView(.accepted)
+                
+                self.driver = MKPointAnnotation()
+                let driverGeoPoint = ride["driverLocation"] as! PFGeoPoint
+                self.driver.coordinate = CLLocationCoordinate2D(latitude: driverGeoPoint.latitude, longitude: driverGeoPoint.longitude)
+                self.driver.title = "Your driver"
+                self.map.addAnnotation(self.driver)
+                
+                if var distanceToDriver = self.currentLocation?.distanceInMiles(to: ride["driverLocation"] as? PFGeoPoint) {
+                    distanceToDriver = self.round(distanceToDriver, numOfPlaces: 2)
+                    self.createAlert(title: "Your driver is near!", message: "Your driver is \(distanceToDriver) mi. away")
+                }
+                
+            }
+            else {
+                self.setStateforView(.noRequests)
+            }
+        })
+    }
+    
+    func setStateforView(_ state: RiderViewState) {
+        switch state {
+        case .noRequests:
+            callingAnUber = true
+            callUberButton.isHidden = false
+            callUberButton.setTitle("Call an Uber", for: [])
+            rideCompletedButton.isHidden = true
+            
+        case .awaitingAccept:
+            callUberButton.setTitle("Cancel Uber", for: [])
+            callingAnUber = false
+            callUberButton.isHidden = false
+            rideCompletedButton.isHidden = true
+            
+        case .accepted:
+            rideCompletedButton.isHidden = false
+            callUberButton.isHidden = true
+            callingAnUber = false
+        }
+    }
+    
+    func round(_ double: Double, numOfPlaces: Int) -> Double {
+        let divisor = pow(10.0, Double(numOfPlaces))
+        
+        return ((double * divisor).rounded()) / divisor
     }
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
