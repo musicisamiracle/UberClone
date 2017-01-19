@@ -6,8 +6,6 @@
 //  Copyright © 2017 Parse. All rights reserved.
 //
 
-// once driver location can be updated in background, have this periodically update to reflect the driver position
-
 import UIKit
 import MapKit
 import Parse

@@ -106,42 +106,11 @@ class RiderDetailViewController: UIViewController {
         
     }
     
-    func updateRide() {
-        let query = PFQuery(className: "AcceptedRides")
-        query.whereKey("driver", equalTo: PFUser.current())
-        query.whereKey("complete", equalTo: false)
-        query.getFirstObjectInBackground { [unowned self] (object, error) in
-            if error != nil {
-                print(error.debugDescription)
-            }
-            
-            if let ride = object {
-                PFGeoPoint.geoPointForCurrentLocation(inBackground: { (point, error) in
-                    if error != nil {
-                        print(error.debugDescription)
-                    }
-                    if let point = point {
-                        ride["driverLocation"] = point
-                        ride.saveInBackground()
-                    }
-                })
-            }
-            else {
-                self.timer.invalidate()
-            }
-        }
-    }
-    
-    func updateLocationOnTimer() {
-        print("in background")
-        timer = Timer(timeInterval: 5, target: self, selector: #selector(updateRide), userInfo: nil, repeats: true)
-    }
+
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // having an issue with snapshot of view when entering background
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(updateLocationOnTimer), name: Notification.Name.UIApplicationDidEnterBackground, object: nil)
+
         map.showsUserLocation = true
         map.isZoomEnabled = true
         
