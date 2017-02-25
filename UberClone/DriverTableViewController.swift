@@ -8,23 +8,57 @@
 
 import UIKit
 import Parse
+import MapKit
 
-// Should have some way of knowing a ride is in progress.
 
 class DriverTableViewController: UITableViewController {
 
+    //MARK: Properties
     var rideRequests: [PFObject] = []
     var driverLocation: PFGeoPoint?
     var selectedRequest: PFObject!
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-    }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
+        // Check for a ride in progress
+        let inProgressQuery = PFQuery(className: "AcceptedRides")
+        inProgressQuery.whereKey("driver", equalTo: PFUser.current()!)
+        inProgressQuery.whereKey("complete", equalTo: false)
+        inProgressQuery.getFirstObjectInBackground { (object, error) in
+            if error != nil {
+                print(error.debugDescription)
+                
+                return
+            }
+            
+            if object != nil {
+                
+                guard let riderLatitude = UserDefaults.standard.object(forKey: "riderLatitude") as? Double else {
+                    print("no rider latitude saved")
+                    return
+                }
+                guard let riderLongitude = UserDefaults.standard.object(forKey: "riderLongitude") as? Double else {
+                    print("no rider longitude saved")
+                    return
+                }
+                
+                let riderLocation = CLLocationCoordinate2D(latitude: riderLatitude, longitude: riderLongitude)
+                let placemark = MKPlacemark(coordinate: riderLocation, addressDictionary: nil)
+                let item = MKMapItem(placemark: placemark)
+                item.name = UserDefaults.standard.string(forKey: "riderName")
+                item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving, MKLaunchOptionsShowsTrafficKey: true])
+                
+            }
+            else {
+               UserDefaults.standard.removeObject(forKey: "riderLatitude")
+               UserDefaults.standard.removeObject(forKey: "riderLongitude")
+                UserDefaults.standard.removeObject(forKey: "riderName")
+            }
+        }
+        
+        // If no rides in progress, update table with requested rides
         PFGeoPoint.geoPointForCurrentLocation { [unowned self] (point, error) in
             if error != nil {
                 print(error.debugDescription)
@@ -50,24 +84,16 @@ class DriverTableViewController: UITableViewController {
         }
     }
 
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-
     // MARK: - Table view data source
 
     override func numberOfSections(in tableView: UITableView) -> Int {
-        // #warning Incomplete implementation, return the number of sections
         return 1
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        // #warning Incomplete implementation, return the number of rows
         return  rideRequests.count
     }
 
-    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "requestedRiders", for: indexPath) as! RiderTableViewCell
         let rider = rideRequests[indexPath.row]
@@ -81,8 +107,6 @@ class DriverTableViewController: UITableViewController {
         else {
             cell.distanceLabel.text = "Unable to determine distance"
         }
-        
-        
 
         return cell
     }
@@ -92,52 +116,22 @@ class DriverTableViewController: UITableViewController {
         performSegue(withIdentifier: "toRiderDetail", sender: self)
     }
     
-
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
-    }
-    */
-
-    /*
-    // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
-    }
-    */
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
-
-    
     // MARK: - Navigation
 
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "logOut" {
             PFUser.logOut()
         }
         
         if segue.identifier == "toRiderDetail" {
+            let riderLatitude = (selectedRequest["location"] as! PFGeoPoint).latitude
+            let riderLongitude = (selectedRequest["location"] as! PFGeoPoint).longitude
+            let riderName = (selectedRequest["user"] as! PFUser).username
+            
+            
+            UserDefaults.standard.set(riderLatitude, forKey: "riderLatitude")
+            UserDefaults.standard.set(riderLongitude, forKey: "riderLongitude")
+            UserDefaults.standard.set(riderName, forKey: "riderName")
             if let RiderDetailController = segue.destination as? RiderDetailViewController {
                 RiderDetailController.rideRequest = selectedRequest
             }

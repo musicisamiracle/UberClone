@@ -11,7 +11,8 @@ import UIKit
 import Parse
 
 class ViewController: UIViewController {
-
+    
+    //MARK: Properties
     @IBOutlet var usernameTextField: UITextField!
     @IBOutlet var passwordTextField: UITextField!
     @IBOutlet var driverOrRiderSwitch: UISwitch!
@@ -21,6 +22,14 @@ class ViewController: UIViewController {
     var driverOrRider: String {
         return driverOrRiderSwitch.isOn ? "Rider" : "Driver"
     }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        self.navigationController?.dismiss(animated: false, completion: nil)
+    }
+    
+    //MARK: Actions
  
     @IBAction func logInOrSignUp(_ sender: UIButton) {
         
@@ -83,30 +92,7 @@ class ViewController: UIViewController {
             logInOrSignUpLabel.text = "Not a member?"
         }
     }
-    
-    
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
-        self.navigationController?.setNavigationBarHidden(true, animated: false)
-    }
-    
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-        
-        self.navigationController?.setNavigationBarHidden(false, animated: false)
-    }
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
-        
-    }
 
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
 }
 
 extension UIViewController {

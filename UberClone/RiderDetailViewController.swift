@@ -13,7 +13,8 @@ import Parse
 // add viewWillAppear and have a check to see if the ride is still active, then it can segue back to maps or to the DriverTableVC if the ride is cancelled/accepted by someone else.
 
 class RiderDetailViewController: UIViewController {
-
+    
+    //MARK: Properties
     @IBOutlet var map: MKMapView!
     @IBOutlet var acceptButton: UIButton!
     var rideRequest: PFObject?
@@ -23,6 +24,35 @@ class RiderDetailViewController: UIViewController {
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        map.showsUserLocation = true
+        map.isZoomEnabled = true
+        
+        guard let riderName = (rideRequest?["user"] as? PFUser)?["username"] as? String else {
+            print("could not get username")
+            return
+        }
+        guard let riderGeoPoint = rideRequest?["location"] as? PFGeoPoint else {
+            print("could not get location")
+            return
+        }
+        
+        let annotation = MKPointAnnotation()
+        annotation.title = riderName
+        riderCoordinate = CLLocationCoordinate2D(latitude: riderGeoPoint.latitude, longitude: riderGeoPoint.longitude)
+        annotation.coordinate = riderCoordinate!
+        map.addAnnotation(annotation)
+        
+        let region = MKCoordinateRegion(center: riderCoordinate!, span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
+        map.setRegion(region, animated: true)
+        
+    }
+    
+    //MARK: Actions
+    
     @IBAction func acceptRider(_ sender: UIButton) {
         
         guard let riderLocation = riderCoordinate else {
@@ -88,6 +118,7 @@ class RiderDetailViewController: UIViewController {
                             if let point = point {
                                 acceptedRide["driverLocation"] = point
                                 acceptedRide.saveInBackground()
+                                _ = self.navigationController?.popToRootViewController(animated: true)
                                 
                                 let placemark = MKPlacemark(coordinate: riderLocation, addressDictionary: nil)
                                 let item = MKMapItem(placemark: placemark)
@@ -105,51 +136,4 @@ class RiderDetailViewController: UIViewController {
         }
         
     }
-    
-
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-        map.showsUserLocation = true
-        map.isZoomEnabled = true
-        
-        guard let riderName = (rideRequest?["user"] as? PFUser)?["username"] as? String else {
-            print("could not get username")
-            return
-        }
-        guard let riderGeoPoint = rideRequest?["location"] as? PFGeoPoint else {
-            print("could not get location")
-            return
-        }
-        
-        let annotation = MKPointAnnotation()
-        annotation.title = riderName
-        riderCoordinate = CLLocationCoordinate2D(latitude: riderGeoPoint.latitude, longitude: riderGeoPoint.longitude)
-        annotation.coordinate = riderCoordinate!
-        map.addAnnotation(annotation)
-        
-        let region = MKCoordinateRegion(center: riderCoordinate!, span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
-        map.setRegion(region, animated: true)
-
-        
-        // Do any additional setup after loading the view.
-    }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-    
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
-    }
-    */
-
 }

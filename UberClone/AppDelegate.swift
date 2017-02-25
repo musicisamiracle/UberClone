@@ -29,9 +29,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         Parse.enableLocalDatastore()
         
         let parseConfiguration = ParseClientConfiguration(block: { (ParseMutableClientConfiguration) -> Void in
-            ParseMutableClientConfiguration.applicationId = "bf16983cd3668869d684e8b026f0f8d33466b439"
-            ParseMutableClientConfiguration.clientKey = "48248c4ecf1b8e8321c082073e83384fb6b29090"
-            ParseMutableClientConfiguration.server = "http://ec2-35-167-70-117.us-west-2.compute.amazonaws.com:80/parse"
+            ParseMutableClientConfiguration.applicationId = "myappID"
+            ParseMutableClientConfiguration.clientKey = "myClientKey"
+            ParseMutableClientConfiguration.server = "myServerURL"
         })
         
         Parse.initialize(with: parseConfiguration)

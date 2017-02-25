@@ -11,9 +11,9 @@ import MapKit
 import Parse
 
 class RiderViewController: UIViewController {
-
-    @IBOutlet var rideCompletedButton: UIButton!
     
+    //MARK: Properties
+    @IBOutlet var rideCompletedButton: UIButton!
     @IBOutlet var map: MKMapView!
     @IBOutlet var callUberButton: UIButton!
     var currentUser: PFUser!
@@ -22,13 +22,52 @@ class RiderViewController: UIViewController {
     var currentLocation: PFGeoPoint?
     var driver = MKPointAnnotation()
 
-    enum RequestUpdateType: Int {
+    enum RequestUpdateType {
         case refresh, cancel
     }
     
-    enum RiderViewState: Int {
+    enum RiderViewState {
         case noRequests, awaitingAccept, accepted
     }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        self.navigationController?.setNavigationBarHidden(true, animated: false)
+        
+        currentUser = PFUser.current()
+        
+        map.showsUserLocation = true
+        map.isZoomEnabled = true
+        map.userTrackingMode = .follow
+        
+        PFGeoPoint.geoPointForCurrentLocation { [unowned self] (point, error) in
+            if error != nil {
+                print(error.debugDescription)
+            }
+            
+            if let point = point {
+                self.currentLocation = point
+            }
+        }
+        
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        self.navigationController?.setNavigationBarHidden(true, animated: false)
+        
+        updateOpenRequests(type: .refresh)
+        
+    }
+    
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        
+        self.navigationController?.setNavigationBarHidden(false, animated: false)
+    }
+    
+    //MARK: Actions
 
     @IBAction func callUber(_ sender: UIButton) {
         
@@ -82,51 +121,6 @@ class RiderViewController: UIViewController {
         
     }
 
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        
-        self.navigationController?.setNavigationBarHidden(true, animated: false)
-        
-        currentUser = PFUser.current()
-        
-        map.showsUserLocation = true
-        map.isZoomEnabled = true
-        map.userTrackingMode = .follow
-        
-        PFGeoPoint.geoPointForCurrentLocation { [unowned self] (point, error) in
-            if error != nil {
-                print(error.debugDescription)
-            }
-            
-            if let point = point {
-                self.currentLocation = point
-            }
-        }
-
-    }
-    
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        if segue.identifier == "logOut" {
-            PFUser.logOut()
-        }
-    }
-    
-
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        self.navigationController?.setNavigationBarHidden(true, animated: false)
-        
-        updateOpenRequests(type: .refresh)
-        
-    }
-    
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-        
-        self.navigationController?.setNavigationBarHidden(false, animated: false)
-    }
-    
     func updateOpenRequests(type: RequestUpdateType) {
         
         let query = PFQuery(className: "RequestedRides")
@@ -214,8 +208,11 @@ class RiderViewController: UIViewController {
         
         return ((double * divisor).rounded()) / divisor
     }
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
+    
+    //MARK: Navigation
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "logOut" {
+            PFUser.logOut()
+        }
     }
 }
